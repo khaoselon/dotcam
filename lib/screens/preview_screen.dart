@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../providers/app_providers.dart';
@@ -143,27 +143,27 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
   Future<void> _saveImages() async {
     try {
       final settings = ref.read(settingsProvider);
-
-      // 比較画像を生成
       final compareImageBytes = await _generateCompareImage();
 
-      // 画像を保存
-      final result = await ImageGallerySaver.saveImage(
-        compareImageBytes,
-        quality: 95,
-        name: 'DotCam_${DateTime.now().millisecondsSinceEpoch}',
-      );
+      final tempDir = await getTemporaryDirectory();
+      final filePath =
+          '${tempDir.path}/DotCam_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(filePath);
+      await file.writeAsBytes(compareImageBytes);
 
-      if (result['isSuccess'] == true) {
-        _savedImagePath = result['filePath'];
+      final success = await GallerySaver.saveImage(file.path) ?? false;
+
+      if (success) {
+        _savedImagePath = file.path;
         ref.read(galleryImagesProvider.notifier).addImage(_savedImagePath!);
 
-        // 触覚フィードバック
         if (settings.enableHapticFeedback) {
           HapticFeedback.lightImpact();
         }
 
         _showSuccessSnackBar('画像を保存しました');
+      } else {
+        _showErrorSnackBar('保存に失敗しました');
       }
     } catch (e) {
       debugPrint('保存エラー: $e');
