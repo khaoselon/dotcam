@@ -1,0 +1,59 @@
+name: dotcam
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0-196.1.beta
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 状態管理
+  flutter_riverpod: ^2.5.1
+  flutter_hooks: ^0.20.5
+  hooks_riverpod: ^2.5.1
+  
+  # カメラ・画像処理
+  camera: ^0.10.5+9
+  image_picker: ^1.0.7
+  image: ^4.1.7
+  
+  # ストレージ・パス
+  path_provider: ^2.1.2
+  image_gallery_saver: ^2.0.3
+  
+  # シェア機能
+  share_plus: ^7.2.2
+  
+  # 広告
+  google_mobile_ads: ^5.0.0
+  
+  # その他
+  permission_handler: ^11.3.0
+  app_tracking_transparency: ^2.0.5
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/tutorials/
+  
+  fonts:
+    - family: PixelFont
+      fonts:
+        - asset: assets/fonts/PressStart2P-Regular.ttf
