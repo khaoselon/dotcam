@@ -5,6 +5,7 @@ import '../providers/app_providers.dart';
 import '../models/dot_settings.dart';
 import '../models/app_settings.dart';
 import '../utils/constants.dart';
+import '../utils/dot_converter.dart' as dot;
 import '../widgets/settings_section.dart';
 import '../widgets/settings_item.dart';
 import 'onboarding_screen.dart';
@@ -446,17 +447,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  // その他のメソッドは文字数制限により省略
-  // 実際の実装では以下のようなメソッドが必要：
-  // - _showResolutionSelector()
-  // - _showCompareLayoutSelector()
-  // - _showSaveLocationSelector()
-  // - _buildLanguageSelector()
-  // - _buildColorPaletteSelector()
-  // - _showInfoDialog()
-  // - _getPrivacyText()
-  // - _getTermsText()
-
   void _showResolutionSelector() {
     showModalBottomSheet(
       context: context,
@@ -678,7 +668,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const SizedBox(height: 24),
           Expanded(
             child: ListView(
-              children: ColorPalette.values.map((palette) {
+              children: dot.ColorPalette.values.map((palette) {
                 final isSelected =
                     ref.read(dotSettingsProvider).palette == palette;
                 return Container(

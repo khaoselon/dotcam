@@ -5,6 +5,7 @@ import '../models/app_settings.dart';
 import '../models/dot_settings.dart';
 import '../providers/app_providers.dart';
 import '../utils/constants.dart';
+import '../utils/dot_converter.dart' as dot;
 
 class DotPreviewOverlay extends ConsumerStatefulWidget {
   final CameraController cameraController;

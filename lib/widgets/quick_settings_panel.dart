@@ -5,6 +5,7 @@ import '../providers/app_providers.dart';
 import '../models/dot_settings.dart';
 import '../utils/constants.dart';
 import '../utils/anime_converter.dart';
+import '../utils/dot_converter.dart' as dot;
 
 class QuickSettingsPanel extends ConsumerWidget {
   final VoidCallback onClose;
@@ -404,7 +405,7 @@ class QuickSettingsPanel extends ConsumerWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
-              children: ColorPalette.values.map((palette) {
+              children: dot.ColorPalette.values.map((palette) {
                 final isSelected = settings.palette == palette;
                 return Container(
                   margin: const EdgeInsets.only(right: 8),
@@ -449,11 +450,13 @@ class QuickSettingsPanel extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (palette == ColorPalette.adaptive ||
-                              palette == ColorPalette.original) ...[
+                          if (palette == dot.ColorPalette.adaptive ||
+                              palette == dot.ColorPalette.original) ...[
                             const SizedBox(height: 2),
                             Text(
-                              palette == ColorPalette.adaptive ? '自動' : '元色',
+                              palette == dot.ColorPalette.adaptive
+                                  ? '自動'
+                                  : '元色',
                               style: TextStyle(
                                 color: isSelected
                                     ? Color(

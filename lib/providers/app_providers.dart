@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
 import 'package:dotcam/models/dot_settings.dart' as model;
 import '../models/app_settings.dart';
-import 'package:dotcam/utils/dot_converter.dart' as dot;
+import '../utils/dot_converter.dart' as dot;
 import 'package:dotcam/utils/anime_converter.dart' as anime;
 
 // カメラプロバイダー
@@ -62,7 +62,7 @@ class DotSettingsNotifier extends StateNotifier<model.DotSettings> {
     state = state.copyWith(conversionStyle: style);
   }
 
-  void updatePalette(model.ColorPalette palette) {
+  void updatePalette(dot.ColorPalette palette) {
     state = state.copyWith(palette: palette);
   }
 
@@ -88,7 +88,7 @@ class DotSettingsNotifier extends StateNotifier<model.DotSettings> {
 
   void updateCustomColors(List<int> colors) {
     state = state.copyWith(
-      palette: model.ColorPalette.custom,
+      palette: dot.ColorPalette.custom,
       customColors: colors,
     );
   }

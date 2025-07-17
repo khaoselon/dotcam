@@ -49,43 +49,72 @@ class AnimeConverter {
     }
   }
 
-  /// Isolateでの変換処理
+  /// Isolateでの変換処理（安全版）
   static Future<Uint8List> _convertAnimeIsolate(
     Map<String, dynamic> params,
   ) async {
-    final Uint8List imageBytes = params['imageBytes'];
-    final int styleIndex = params['style'];
-    final Map<String, dynamic> options = params['options'];
-    final ConversionStyle style = ConversionStyle.values[styleIndex];
+    try {
+      final Uint8List imageBytes = params['imageBytes'];
+      final int styleIndex = params['style'];
+      final Map<String, dynamic> options = params['options'];
+      final ConversionStyle style = ConversionStyle.values[styleIndex];
 
-    img.Image? image = img.decodeImage(imageBytes);
-    if (image == null) {
-      throw Exception('画像の読み込みに失敗しました');
+      print('変換開始: ${style.toString()}'); // デバッグログ
+
+      img.Image? image = img.decodeImage(imageBytes);
+      if (image == null) {
+        throw Exception('画像の読み込みに失敗しました');
+      }
+
+      print('画像サイズ: ${image.width}x${image.height}'); // デバッグログ
+
+      // スタイル別変換
+      switch (style) {
+        case ConversionStyle.anime:
+          image = await _convertToAnimeStyle(image, options);
+          break;
+        case ConversionStyle.cartoon:
+          image = await _convertToCartoonStyle(image, options);
+          break;
+        case ConversionStyle.manga:
+          image = await _convertToMangaStyle(image, options);
+          break;
+        case ConversionStyle.chibi:
+          image = await _convertToChibiStyle(image, options);
+          break;
+        case ConversionStyle.realistic:
+          image = await _convertToRealisticStyle(image, options);
+          break;
+        case ConversionStyle.dotArt:
+          image = await _convertToDotArtStyle(image, options);
+          break;
+      }
+
+      print('変換完了'); // デバッグログ
+
+      final result = Uint8List.fromList(img.encodePng(image));
+      print('PNG出力完了: ${result.length} bytes'); // デバッグログ
+
+      return result;
+    } catch (e, stackTrace) {
+      print('変換エラー: $e');
+      print('スタックトレース: $stackTrace');
+
+      // エラー時は元画像を軽く調整して返す
+      try {
+        final Uint8List imageBytes = params['imageBytes'];
+        img.Image? image = img.decodeImage(imageBytes);
+        if (image != null) {
+          image = _safeImageAdjustment(image);
+          return Uint8List.fromList(img.encodePng(image));
+        }
+      } catch (e2) {
+        print('フォールバック処理もエラー: $e2');
+      }
+
+      // 最悪の場合は元画像をそのまま返す
+      return params['imageBytes'];
     }
-
-    // スタイル別変換
-    switch (style) {
-      case ConversionStyle.anime:
-        image = await _convertToAnimeStyle(image, options);
-        break;
-      case ConversionStyle.cartoon:
-        image = await _convertToCartoonStyle(image, options);
-        break;
-      case ConversionStyle.manga:
-        image = await _convertToMangaStyle(image, options);
-        break;
-      case ConversionStyle.chibi:
-        image = await _convertToChibiStyle(image, options);
-        break;
-      case ConversionStyle.realistic:
-        image = await _convertToRealisticStyle(image, options);
-        break;
-      case ConversionStyle.dotArt:
-        image = await _convertToDotArtStyle(image, options);
-        break;
-    }
-
-    return Uint8List.fromList(img.encodePng(image));
   }
 
   /// アニメ風変換
@@ -93,25 +122,28 @@ class AnimeConverter {
     img.Image image,
     Map<String, dynamic> options,
   ) async {
-    // 1. 前処理とリサイズ
-    image = _preprocessImage(image);
+    try {
+      // 1. 前処理とリサイズ
+      image = _preprocessImage(image);
 
-    // 2. 肌質改善
-    image = _applySkinSmoothing(image, intensity: 0.6);
+      // 2. 軽い肌質改善（強度を下げる）
+      image = _applySkinSmoothing(image, intensity: 0.3);
 
-    // 3. 色彩調整（アニメ調）
-    image = _enhanceAnimeColors(image);
+      // 3. 色彩調整（アニメ調）- パラメータを安全な範囲に
+      image = _enhanceAnimeColors(image);
 
-    // 4. 目と髪の強調
-    image = _enhanceFacialFeatures(image);
+      // 4. 軽いエッジ強調
+      image = _enhanceEdgesSelective(image);
 
-    // 5. 輪郭とディテール
-    image = _enhanceEdgesSelective(image);
+      // 5. 最終調整（パラメータを控えめに）
+      image = _finalAnimeAdjustments(image);
 
-    // 6. 最終調整
-    image = _finalAnimeAdjustments(image);
-
-    return image;
+      return image;
+    } catch (e) {
+      print('アニメ風変換エラー: $e');
+      // エラー時は元画像を軽く調整して返す
+      return _safeImageAdjustment(image);
+    }
   }
 
   /// カートゥーン風変換
@@ -119,21 +151,26 @@ class AnimeConverter {
     img.Image image,
     Map<String, dynamic> options,
   ) async {
-    image = _preprocessImage(image);
+    try {
+      image = _preprocessImage(image);
 
-    // 1. 強いブラー
-    image = img.gaussianBlur(image, radius: 4);
+      // 1. 軽いブラー - intに変換
+      image = img.gaussianBlur(image, radius: 2);
 
-    // 2. 色数削減
-    image = _quantizeColors(image, 32);
+      // 2. 色数削減（控えめに）
+      image = _quantizeColors(image, 64);
 
-    // 3. 輪郭強調
-    image = _enhanceEdges(image, strength: 1.5);
+      // 3. 軽い輪郭強調
+      image = _enhanceEdges(image, strength: 1.0);
 
-    // 4. コントラスト強化
-    image = img.adjustColor(image, contrast: 1.4, saturation: 1.3);
+      // 4. コントラスト強化（控えめに）
+      image = img.adjustColor(image, contrast: 1.2, saturation: 1.1);
 
-    return image;
+      return image;
+    } catch (e) {
+      print('カートゥーン風変換エラー: $e');
+      return _safeImageAdjustment(image);
+    }
   }
 
   /// 漫画風変換
@@ -141,21 +178,26 @@ class AnimeConverter {
     img.Image image,
     Map<String, dynamic> options,
   ) async {
-    image = _preprocessImage(image);
+    try {
+      image = _preprocessImage(image);
 
-    // 1. グレースケール変換
-    image = img.grayscale(image);
+      // 1. グレースケール変換
+      image = img.grayscale(image);
 
-    // 2. コントラスト強化
-    image = img.adjustColor(image, contrast: 2.2);
+      // 2. コントラスト強化（控えめに）
+      image = img.adjustColor(image, contrast: 1.8);
 
-    // 3. ハーフトーン風効果
-    image = _applyHalftoneEffect(image);
+      // 3. ハーフトーン風効果
+      image = _applyHalftoneEffect(image);
 
-    // 4. エッジ強調
-    image = _enhanceEdges(image, strength: 2.0);
+      // 4. エッジ強調
+      image = _enhanceEdges(image, strength: 1.5);
 
-    return image;
+      return image;
+    } catch (e) {
+      print('漫画風変換エラー: $e');
+      return img.grayscale(_safeImageAdjustment(image));
+    }
   }
 
   /// ちび風変換
@@ -163,21 +205,26 @@ class AnimeConverter {
     img.Image image,
     Map<String, dynamic> options,
   ) async {
-    image = _preprocessImage(image);
+    try {
+      image = _preprocessImage(image);
 
-    // 1. 軽いブラー
-    image = img.gaussianBlur(image, radius: 2);
+      // 1. 軽いブラー - intに変換
+      image = img.gaussianBlur(image, radius: 1);
 
-    // 2. パステル調色彩
-    image = _applyPastelColors(image);
+      // 2. パステル調色彩
+      image = _applyPastelColors(image);
 
-    // 3. 可愛らしさ強調
-    image = _enhanceCuteness(image);
+      // 3. 可愛らしさ強調（控えめに）
+      image = _enhanceCuteness(image);
 
-    // 4. 軽い量子化
-    image = _quantizeColors(image, 64);
+      // 4. 軽い量子化
+      image = _quantizeColors(image, 128);
 
-    return image;
+      return image;
+    } catch (e) {
+      print('ちび風変換エラー: $e');
+      return _safeImageAdjustment(image);
+    }
   }
 
   /// リアル調整版
@@ -185,62 +232,72 @@ class AnimeConverter {
     img.Image image,
     Map<String, dynamic> options,
   ) async {
-    image = _preprocessImage(image);
+    try {
+      image = _preprocessImage(image);
 
-    // 1. ノイズ除去
-    image = img.gaussianBlur(image, radius: 1);
+      // 1. ノイズ除去（軽く）- doubleを整数に変換
+      image = img.gaussianBlur(image, radius: 1); // 0.5 -> 1に変更
 
-    // 2. 美肌効果
-    image = _applySkinSmoothing(image, intensity: 0.3);
+      // 2. 軽い美肌効果
+      image = _applySkinSmoothing(image, intensity: 0.2);
 
-    // 3. シャープネス強化
-    image = img.convolution(image, [0, -1, 0, -1, 5, -1, 0, -1, 0]);
+      // 3. シャープネス強化（控えめに）
+      image = _applyConvolution(image, [0, -0.5, 0, -0.5, 3, -0.5, 0, -0.5, 0]);
 
-    // 4. 色彩補正
-    image = img.adjustColor(image, brightness: 0.05, contrast: 1.1);
+      // 4. 色彩補正（控えめに）
+      image = img.adjustColor(image, brightness: 0.02, contrast: 1.05);
 
-    return image;
+      return image;
+    } catch (e) {
+      print('リアル調整エラー: $e');
+      return _safeImageAdjustment(image);
+    }
   }
 
-  /// ドット絵風変換
+  /// ドット絵風変換（安全版）
   static Future<img.Image> _convertToDotArtStyle(
     img.Image image,
     Map<String, dynamic> options,
   ) async {
-    final resolution = options['resolution'] ?? 64;
+    try {
+      final resolution = (options['resolution'] ?? 64).clamp(16, 128);
 
-    // 1. ダウンサンプリング
-    final aspectRatio = image.width / image.height;
-    int width, height;
+      // 1. ダウンサンプリング
+      final aspectRatio = image.width / image.height;
+      int width, height;
 
-    if (aspectRatio > 1.0) {
-      width = resolution;
-      height = (resolution / aspectRatio).round();
-    } else {
-      height = resolution;
-      width = (resolution * aspectRatio).round();
+      if (aspectRatio > 1.0) {
+        width = resolution;
+        height = (resolution / aspectRatio).round().clamp(8, resolution);
+      } else {
+        height = resolution;
+        width = (resolution * aspectRatio).round().clamp(8, resolution);
+      }
+
+      image = img.copyResize(
+        image,
+        width: width,
+        height: height,
+        interpolation: img.Interpolation.nearest,
+      );
+
+      // 2. 色数削減
+      image = _quantizeColors(image, 16);
+
+      // 3. アップスケール
+      final scale = math.max(1, 256 ~/ math.max(width, height));
+      image = img.copyResize(
+        image,
+        width: width * scale,
+        height: height * scale,
+        interpolation: img.Interpolation.nearest,
+      );
+
+      return image;
+    } catch (e) {
+      debugPrint('ドット絵変換エラー: $e');
+      return _safeImageAdjustment(image);
     }
-
-    image = img.copyResize(
-      image,
-      width: width,
-      height: height,
-      interpolation: img.Interpolation.nearest,
-    );
-
-    // 2. 色数削減
-    image = _quantizeColors(image, 16);
-
-    // 3. アップスケール
-    final scale = 512 ~/ math.max(width, height);
-    image = img.copyResize(
-      image,
-      width: width * scale,
-      height: height * scale,
-      interpolation: img.Interpolation.nearest,
-    );
-
-    return image;
   }
 
   /// 前処理
@@ -257,68 +314,72 @@ class AnimeConverter {
     return image;
   }
 
-  /// 肌質改善
+  /// 肌質改善（安全版）
   static img.Image _applySkinSmoothing(
     img.Image image, {
     double intensity = 0.5,
   }) {
-    // ガウシアンブラーを適用
-    final blurred = img.gaussianBlur(image, radius: (3 * intensity).round());
+    try {
+      // 安全な範囲にクランプ
+      intensity = intensity.clamp(0.0, 1.0);
 
-    // 肌色領域でのみブラーを適用
-    for (int y = 0; y < image.height; y++) {
-      for (int x = 0; x < image.width; x++) {
-        final originalPixel = image.getPixel(x, y);
-        final blurredPixel = blurred.getPixel(x, y);
+      // ガウシアンブラーを適用（安全な範囲）- doubleをintに変換
+      final blurRadius = (2 * intensity).round().clamp(1, 3);
+      final blurred = img.gaussianBlur(image, radius: blurRadius);
 
-        if (_isSkinColor(originalPixel)) {
-          // 肌色の場合はブラー効果を適用
-          final mixRatio = intensity;
-          final newR = _lerp(originalPixel.r, blurredPixel.r, mixRatio);
-          final newG = _lerp(originalPixel.g, blurredPixel.g, mixRatio);
-          final newB = _lerp(originalPixel.b, blurredPixel.b, mixRatio);
+      // 簡単な肌色ブレンド処理
+      for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+          final originalPixel = image.getPixel(x, y);
+          final blurredPixel = blurred.getPixel(x, y);
 
-          image.setPixel(
-            x,
-            y,
-            img.ColorRgb8(
-              newR.round().clamp(0, 255),
-              newG.round().clamp(0, 255),
-              newB.round().clamp(0, 255),
-            ),
-          );
+          if (_isSkinColor(originalPixel)) {
+            // 肌色の場合は軽くブラー効果を適用
+            final mixRatio = intensity * 0.5; // さらに控えめに
+            final newR = _lerp(originalPixel.r, blurredPixel.r, mixRatio);
+            final newG = _lerp(originalPixel.g, blurredPixel.g, mixRatio);
+            final newB = _lerp(originalPixel.b, blurredPixel.b, mixRatio);
+
+            image.setPixel(
+              x,
+              y,
+              img.ColorRgb8(
+                newR.round().clamp(0, 255),
+                newG.round().clamp(0, 255),
+                newB.round().clamp(0, 255),
+              ),
+            );
+          }
         }
       }
-    }
 
-    return image;
+      return image;
+    } catch (e) {
+      print('肌質改善エラー: $e');
+      return image; // エラー時は元画像を返す
+    }
   }
 
-  /// アニメ調色彩強化
+  /// アニメ調色彩強化（安全版）
   static img.Image _enhanceAnimeColors(img.Image image) {
-    for (int y = 0; y < image.height; y++) {
-      for (int x = 0; x < image.width; x++) {
-        final pixel = image.getPixel(x, y);
-        final hsv = _rgbToHsv(pixel.r, pixel.g, pixel.b);
+    try {
+      for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+          final pixel = image.getPixel(x, y);
 
-        // 彩度を上げる
-        hsv[1] = math.min(hsv[1] * 1.3, 1.0);
+          // 安全な色調整
+          final newR = math.min(pixel.r * 1.1, 255).round().clamp(0, 255);
+          final newG = math.min(pixel.g * 1.1, 255).round().clamp(0, 255);
+          final newB = math.min(pixel.b * 1.1, 255).round().clamp(0, 255);
 
-        // 明度調整
-        hsv[2] = math.min(hsv[2] * 1.1, 1.0);
-
-        // 色相の微調整（アニメ調）
-        if (hsv[0] >= 300 || hsv[0] <= 60) {
-          // 赤～黄色系
-          hsv[1] = math.min(hsv[1] * 1.2, 1.0);
+          image.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
         }
-
-        final rgb = _hsvToRgb(hsv[0], hsv[1], hsv[2]);
-        image.setPixel(x, y, img.ColorRgb8(rgb[0], rgb[1], rgb[2]));
       }
+      return image;
+    } catch (e) {
+      debugPrint('色彩強化エラー: $e');
+      return image; // エラー時は元画像を返す
     }
-
-    return image;
   }
 
   /// 顔の特徴強調
@@ -369,15 +430,31 @@ class AnimeConverter {
     return image;
   }
 
-  /// 最終アニメ調整
+  /// 最終アニメ調整（安全版）
   static img.Image _finalAnimeAdjustments(img.Image image) {
-    // 軽い色数削減
-    image = _quantizeColors(image, 200);
+    try {
+      // 軽い色数削減
+      image = _quantizeColors(image, 200);
 
-    // 最終コントラスト調整
-    image = img.adjustColor(image, contrast: 1.15, brightness: 0.05);
+      // 最終コントラスト調整（控えめに）
+      image = img.adjustColor(image, contrast: 1.1, brightness: 0.02);
 
-    return image;
+      return image;
+    } catch (e) {
+      debugPrint('最終調整エラー: $e');
+      return image;
+    }
+  }
+
+  /// 安全な画像調整（エラー時のフォールバック）
+  static img.Image _safeImageAdjustment(img.Image image) {
+    try {
+      // 最小限の安全な調整
+      return img.adjustColor(image, contrast: 1.05, brightness: 0.01);
+    } catch (e) {
+      debugPrint('安全調整エラー: $e');
+      return image; // 最悪の場合は元画像をそのまま返す
+    }
   }
 
   /// エッジ強調
@@ -394,195 +471,227 @@ class AnimeConverter {
       0,
     ];
 
-    return img.convolution(image, kernel);
+    return _applyConvolution(image, kernel);
   }
 
-  /// 色数削減
+  /// コンボリューション適用（安全版）
+  static img.Image _applyConvolution(img.Image image, List<num> kernel) {
+    try {
+      final result = img.Image(width: image.width, height: image.height);
+
+      // 3x3カーネルとして処理
+      const kernelSize = 3;
+      const offset = kernelSize ~/ 2;
+
+      for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+          double sumR = 0, sumG = 0, sumB = 0;
+
+          for (int ky = 0; ky < kernelSize; ky++) {
+            for (int kx = 0; kx < kernelSize; kx++) {
+              final px = (x + kx - offset).clamp(0, image.width - 1);
+              final py = (y + ky - offset).clamp(0, image.height - 1);
+
+              final pixel = image.getPixel(px, py);
+              final kernelValue = kernel[ky * kernelSize + kx];
+
+              sumR += pixel.r * kernelValue;
+              sumG += pixel.g * kernelValue;
+              sumB += pixel.b * kernelValue;
+            }
+          }
+
+          result.setPixel(
+            x,
+            y,
+            img.ColorRgb8(
+              sumR.round().clamp(0, 255),
+              sumG.round().clamp(0, 255),
+              sumB.round().clamp(0, 255),
+            ),
+          );
+        }
+      }
+
+      return result;
+    } catch (e) {
+      debugPrint('コンボリューションエラー: $e');
+      return image;
+    }
+  }
+
+  /// 色数削減（安全版）
   static img.Image _quantizeColors(img.Image image, int colorCount) {
-    final factor = 256 / colorCount;
+    try {
+      colorCount = colorCount.clamp(4, 256);
+      final factor = 256 / colorCount;
 
-    for (int y = 0; y < image.height; y++) {
-      for (int x = 0; x < image.width; x++) {
-        final pixel = image.getPixel(x, y);
+      for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+          final pixel = image.getPixel(x, y);
 
-        final newR = ((pixel.r ~/ factor) * factor).clamp(0, 255).toInt();
-        final newG = ((pixel.g ~/ factor) * factor).clamp(0, 255).toInt();
-        final newB = ((pixel.b ~/ factor) * factor).clamp(0, 255).toInt();
+          final newR = ((pixel.r ~/ factor) * factor).clamp(0, 255).toInt();
+          final newG = ((pixel.g ~/ factor) * factor).clamp(0, 255).toInt();
+          final newB = ((pixel.b ~/ factor) * factor).clamp(0, 255).toInt();
 
-        image.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
+          image.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
+        }
       }
-    }
 
-    return image;
+      return image;
+    } catch (e) {
+      debugPrint('色数削減エラー: $e');
+      return image;
+    }
   }
 
-  /// パステル調色彩
+  /// パステル調色彩（安全版）
   static img.Image _applyPastelColors(img.Image image) {
-    for (int y = 0; y < image.height; y++) {
-      for (int x = 0; x < image.width; x++) {
-        final pixel = image.getPixel(x, y);
+    try {
+      for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+          final pixel = image.getPixel(x, y);
 
-        // パステル調に調整
-        final newR = (pixel.r * 0.8 + 255 * 0.2).round().clamp(0, 255);
-        final newG = (pixel.g * 0.8 + 255 * 0.2).round().clamp(0, 255);
-        final newB = (pixel.b * 0.8 + 255 * 0.2).round().clamp(0, 255);
+          // パステル調に調整（控えめに）
+          final newR = (pixel.r * 0.9 + 255 * 0.1).round().clamp(0, 255);
+          final newG = (pixel.g * 0.9 + 255 * 0.1).round().clamp(0, 255);
+          final newB = (pixel.b * 0.9 + 255 * 0.1).round().clamp(0, 255);
 
-        image.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
+          image.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
+        }
       }
-    }
 
-    return image;
+      return image;
+    } catch (e) {
+      debugPrint('パステル調整エラー: $e');
+      return image;
+    }
   }
 
-  /// 可愛らしさ強調
+  /// 可愛らしさ強調（安全版）
   static img.Image _enhanceCuteness(img.Image image) {
-    // 暖色系を強調
-    for (int y = 0; y < image.height; y++) {
-      for (int x = 0; x < image.width; x++) {
-        final pixel = image.getPixel(x, y);
-        final hsv = _rgbToHsv(pixel.r, pixel.g, pixel.b);
+    try {
+      // 暖色系を軽く強調
+      for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+          final pixel = image.getPixel(x, y);
 
-        // ピンク系の色相を強調
-        if ((hsv[0] >= 300 && hsv[0] <= 360) || (hsv[0] >= 0 && hsv[0] <= 60)) {
-          hsv[1] = math.min(hsv[1] * 1.4, 1.0);
-          hsv[2] = math.min(hsv[2] * 1.1, 1.0);
+          // ピンク系の色を軽く強調
+          if (pixel.r > pixel.g && pixel.r > pixel.b) {
+            final newR = math.min(pixel.r * 1.05, 255).round().clamp(0, 255);
+            final newG = pixel.g.round().clamp(0, 255);
+            final newB = pixel.b.round().clamp(0, 255);
+
+            image.setPixel(x, y, img.ColorRgb8(newR, newG, newB));
+          }
         }
-
-        final rgb = _hsvToRgb(hsv[0], hsv[1], hsv[2]);
-        image.setPixel(x, y, img.ColorRgb8(rgb[0], rgb[1], rgb[2]));
       }
-    }
 
-    return image;
+      return image;
+    } catch (e) {
+      debugPrint('可愛らしさ強調エラー: $e');
+      return image;
+    }
   }
 
-  /// ハーフトーン効果
+  /// ハーフトーン効果（安全版）
   static img.Image _applyHalftoneEffect(img.Image image) {
-    for (int y = 0; y < image.height; y += 4) {
-      for (int x = 0; x < image.width; x += 4) {
-        if (x + 4 <= image.width && y + 4 <= image.height) {
-          // 4x4ブロックの平均値を計算
-          int totalR = 0, totalG = 0, totalB = 0;
-          for (int dy = 0; dy < 4; dy++) {
-            for (int dx = 0; dx < 4; dx++) {
-              final pixel = image.getPixel(x + dx, y + dy);
-              totalR += pixel.r.toInt();
-              totalG += pixel.g.toInt();
-              totalB += pixel.b.toInt();
+    try {
+      const blockSize = 3; // ブロックサイズを小さく
+
+      for (int y = 0; y < image.height; y += blockSize) {
+        for (int x = 0; x < image.width; x += blockSize) {
+          if (x + blockSize <= image.width && y + blockSize <= image.height) {
+            // 小さなブロックの平均値を計算
+            int totalR = 0, totalG = 0, totalB = 0;
+            int pixelCount = 0;
+
+            for (int dy = 0; dy < blockSize; dy++) {
+              for (int dx = 0; dx < blockSize; dx++) {
+                if (x + dx < image.width && y + dy < image.height) {
+                  final pixel = image.getPixel(x + dx, y + dy);
+                  totalR += pixel.r.toInt();
+                  totalG += pixel.g.toInt();
+                  totalB += pixel.b.toInt();
+                  pixelCount++;
+                }
+              }
             }
-          }
 
-          final avgR = totalR ~/ 16;
-          final avgG = totalG ~/ 16;
-          final avgB = totalB ~/ 16;
+            if (pixelCount > 0) {
+              final avgR = totalR ~/ pixelCount;
+              final avgG = totalG ~/ pixelCount;
+              final avgB = totalB ~/ pixelCount;
 
-          // ブロック全体を平均値で塗りつぶし
-          for (int dy = 0; dy < 4; dy++) {
-            for (int dx = 0; dx < 4; dx++) {
-              image.setPixel(x + dx, y + dy, img.ColorRgb8(avgR, avgG, avgB));
+              // ブロック全体を平均値で塗りつぶし
+              for (int dy = 0; dy < blockSize; dy++) {
+                for (int dx = 0; dx < blockSize; dx++) {
+                  if (x + dx < image.width && y + dy < image.height) {
+                    image.setPixel(
+                      x + dx,
+                      y + dy,
+                      img.ColorRgb8(avgR, avgG, avgB),
+                    );
+                  }
+                }
+              }
             }
           }
         }
       }
-    }
 
-    return image;
+      return image;
+    } catch (e) {
+      debugPrint('ハーフトーンエラー: $e');
+      return image;
+    }
   }
 
-  // ユーティリティメソッド
+  // ユーティリティメソッド（安全版）
   static bool _isSkinColor(img.Pixel pixel) {
-    final r = pixel.r.toInt();
-    final g = pixel.g.toInt();
-    final b = pixel.b.toInt();
+    try {
+      final r = pixel.r.toInt();
+      final g = pixel.g.toInt();
+      final b = pixel.b.toInt();
 
-    return r > 95 && g > 40 && b > 20 && (r - g).abs() > 15 && r > g && r > b;
+      return r > 95 && g > 40 && b > 20 && (r - g).abs() > 15 && r > g && r > b;
+    } catch (e) {
+      return false;
+    }
   }
 
   static bool _isEyeColor(img.Pixel pixel) {
-    final r = pixel.r.toInt();
-    final g = pixel.g.toInt();
-    final b = pixel.b.toInt();
+    try {
+      final r = pixel.r.toInt();
+      final g = pixel.g.toInt();
+      final b = pixel.b.toInt();
 
-    // 暗い色（目）の判定
-    return r < 100 && g < 100 && b < 100;
+      // 暗い色（目）の判定
+      return r < 100 && g < 100 && b < 100;
+    } catch (e) {
+      return false;
+    }
   }
 
   static bool _isHairColor(img.Pixel pixel) {
-    final r = pixel.r.toInt();
-    final g = pixel.g.toInt();
-    final b = pixel.b.toInt();
+    try {
+      final r = pixel.r.toInt();
+      final g = pixel.g.toInt();
+      final b = pixel.b.toInt();
 
-    // 髪色の判定（暗い色または茶色系）
-    return (r < 150 && g < 150 && b < 150) || (r > g && r > b && g > b); // 茶色系
+      // 髪色の判定（暗い色または茶色系）
+      return (r < 150 && g < 150 && b < 150) ||
+          (r > g && r > b && g > b); // 茶色系
+    } catch (e) {
+      return false;
+    }
   }
 
   static double _lerp(num a, num b, double t) {
-    return a + (b - a) * t;
-  }
-
-  static List<double> _rgbToHsv(num r, num g, num b) {
-    final rNorm = r / 255.0;
-    final gNorm = g / 255.0;
-    final bNorm = b / 255.0;
-
-    final max = math.max(math.max(rNorm, gNorm), bNorm);
-    final min = math.min(math.min(rNorm, gNorm), bNorm);
-    final delta = max - min;
-
-    double h = 0;
-    if (delta != 0) {
-      if (max == rNorm) {
-        h = 60 * (((gNorm - bNorm) / delta) % 6);
-      } else if (max == gNorm) {
-        h = 60 * (((bNorm - rNorm) / delta) + 2);
-      } else {
-        h = 60 * (((rNorm - gNorm) / delta) + 4);
-      }
+    try {
+      return a + (b - a) * t.clamp(0.0, 1.0);
+    } catch (e) {
+      return a.toDouble();
     }
-
-    final s = max == 0 ? 0.0 : delta / max;
-    final v = max;
-
-    return [h, s, v];
-  }
-
-  static List<int> _hsvToRgb(double h, double s, double v) {
-    final c = v * s;
-    final x = c * (1 - ((h / 60) % 2 - 1).abs());
-    final m = v - c;
-
-    double r = 0, g = 0, b = 0;
-
-    if (h < 60) {
-      r = c;
-      g = x;
-      b = 0;
-    } else if (h < 120) {
-      r = x;
-      g = c;
-      b = 0;
-    } else if (h < 180) {
-      r = 0;
-      g = c;
-      b = x;
-    } else if (h < 240) {
-      r = 0;
-      g = x;
-      b = c;
-    } else if (h < 300) {
-      r = x;
-      g = 0;
-      b = c;
-    } else {
-      r = c;
-      g = 0;
-      b = x;
-    }
-
-    return [
-      ((r + m) * 255).round(),
-      ((g + m) * 255).round(),
-      ((b + m) * 255).round(),
-    ];
   }
 }

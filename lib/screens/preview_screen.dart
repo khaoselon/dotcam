@@ -125,7 +125,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
         final converter = ref.read(dotConverterProvider);
         _dottedImageBytes = await converter.convertToDot(
           imageBytes: _originalImageBytes!,
-          settings: dotSettings,
+          settings: dotSettings.toJson(),
           onProgress: (progress) {
             // プログレス表示は今回省略
           },
