@@ -1,8 +1,8 @@
-import '../utils/anime_converter.dart';
+import '../utils/anime_converter.dart' as anime;
 
 class DotSettings {
   final int resolution;
-  final AnimeConverter.ConversionStyle conversionStyle;
+  final anime.ConversionStyle conversionStyle;
   final ColorPalette palette;
   final bool ditheringEnabled;
   final double contrast;
@@ -26,7 +26,7 @@ class DotSettings {
   factory DotSettings.defaultSettings() {
     return const DotSettings(
       resolution: 64,
-      conversionStyle: AnimeConverter.ConversionStyle.anime,
+      conversionStyle: anime.ConversionStyle.anime,
       palette: ColorPalette.adaptive,
       ditheringEnabled: false,
       contrast: 1.2,
@@ -38,7 +38,7 @@ class DotSettings {
 
   DotSettings copyWith({
     int? resolution,
-    AnimeConverter.ConversionStyle? conversionStyle,
+    anime.ConversionStyle? conversionStyle,
     ColorPalette? palette,
     bool? ditheringEnabled,
     double? contrast,
@@ -78,7 +78,7 @@ class DotSettings {
     return DotSettings(
       resolution: json['resolution'] ?? 64,
       conversionStyle:
-          AnimeConverter.ConversionStyle.values[json['conversionStyle'] ?? 0],
+          anime.ConversionStyle.values[json['conversionStyle'] ?? 0],
       palette: ColorPalette.values[json['palette'] ?? 0],
       ditheringEnabled: json['ditheringEnabled'] ?? false,
       contrast: json['contrast']?.toDouble() ?? 1.2,

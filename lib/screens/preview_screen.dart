@@ -120,8 +120,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
       final dotSettings = ref.read(dotSettingsProvider);
 
       // 変換スタイルに応じて処理を分岐
-      if (dotSettings.conversionStyle ==
-          AnimeConverter.ConversionStyle.dotArt) {
+      if (dotSettings.conversionStyle == anime.ConversionStyle.dotArt) {
         // 従来のドット絵変換
         final converter = ref.read(dotConverterProvider);
         _dottedImageBytes = await converter.convertToDot(

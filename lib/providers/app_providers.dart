@@ -142,13 +142,13 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 }
 
 // ドット絵変換プロバイダー
-final dotConverterProvider = Provider<DotConverter>((ref) {
-  return DotConverter();
+final dotConverterProvider = Provider<dot.DotConverter>((ref) {
+  return dot.DotConverter();
 });
 
 // アニメ変換プロバイダー
-final animeConverterProvider = Provider<AnimeConverter>((ref) {
-  return AnimeConverter();
+final animeConverterProvider = Provider<anime.AnimeConverter>((ref) {
+  return anime.AnimeConverter();
 });
 
 // 画像処理中状態プロバイダー
