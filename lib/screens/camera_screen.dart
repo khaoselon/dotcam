@@ -8,7 +8,6 @@ import '../utils/constants.dart';
 import '../widgets/shutter_button.dart';
 import '../widgets/quick_settings_panel.dart';
 import '../widgets/camera_controls.dart';
-import '../widgets/dot_preview_overlay.dart';
 import 'preview_screen.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
@@ -21,6 +20,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   CameraController? _cameraController;
   late AnimationController _zoomAnimationController;
   late AnimationController _focusAnimationController;
+  late AnimationController _slideAnimationController;
 
   bool _isInitialized = false;
   bool _isQuickSettingsVisible = false;
@@ -45,6 +45,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       vsync: this,
     );
 
+    _slideAnimationController = AnimationController(
+      duration: Constants.mediumAnimation,
+      vsync: this,
+    );
+
     _initializeCamera();
   }
 
@@ -54,6 +59,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     _cameraController?.dispose();
     _zoomAnimationController.dispose();
     _focusAnimationController.dispose();
+    _slideAnimationController.dispose();
     super.dispose();
   }
 
@@ -256,6 +262,12 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     setState(() {
       _isQuickSettingsVisible = !_isQuickSettingsVisible;
     });
+
+    if (_isQuickSettingsVisible) {
+      _slideAnimationController.forward();
+    } else {
+      _slideAnimationController.reverse();
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -303,7 +315,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // カメラプレビュー
+          // カメラプレビュー（フルスクリーン）
           Positioned.fill(
             child: GestureDetector(
               onTapUp: (details) {
@@ -318,25 +330,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               },
               child: CameraPreview(camera),
             ),
-          ),
-
-          // ドットプレビューオーバーレイ
-          Consumer(
-            builder: (context, ref, child) {
-              final previewMode = ref.watch(previewModeProvider);
-              final settings = ref.watch(settingsProvider);
-
-              if (previewMode == PreviewMode.compare ||
-                  previewMode == PreviewMode.dotted) {
-                return DotPreviewOverlay(
-                  cameraController: camera,
-                  layout: settings.compareLayout,
-                  opacity: settings.previewOpacity,
-                  showGrid: settings.showGridOverlay,
-                );
-              }
-              return const SizedBox.shrink();
-            },
           ),
 
           // フォーカスインジケーター
@@ -382,10 +375,20 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               top: MediaQuery.of(context).padding.top + 70,
               left: 16,
               right: 16,
-              child: QuickSettingsPanel(
-                onClose: () => setState(() {
-                  _isQuickSettingsVisible = false;
-                }),
+              child: SlideTransition(
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, -1),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _slideAnimationController,
+                        curve: Curves.easeInOut,
+                      ),
+                    ),
+                child: QuickSettingsPanel(
+                  onClose: () => _toggleQuickSettings(),
+                ),
               ),
             ),
 

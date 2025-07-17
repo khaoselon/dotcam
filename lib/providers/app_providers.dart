@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
-import '../models/dot_settings.dart';
+import 'package:dotcam/models/dot_settings.dart' as model;
 import '../models/app_settings.dart';
-import '../utils/dot_converter.dart';
+import 'package:dotcam/utils/dot_converter.dart' as dot;
+import 'package:dotcam/utils/anime_converter.dart' as anime;
 
 // カメラプロバイダー
 final cameraProvider = FutureProvider<List<CameraDescription>>((ref) async {
@@ -46,18 +47,22 @@ final themeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 // ドット絵設定プロバイダー
 final dotSettingsProvider =
-    StateNotifierProvider<DotSettingsNotifier, DotSettings>((ref) {
+    StateNotifierProvider<DotSettingsNotifier, model.DotSettings>((ref) {
       return DotSettingsNotifier();
     });
 
-class DotSettingsNotifier extends StateNotifier<DotSettings> {
-  DotSettingsNotifier() : super(DotSettings.defaultSettings());
+class DotSettingsNotifier extends StateNotifier<model.DotSettings> {
+  DotSettingsNotifier() : super(model.DotSettings.defaultSettings());
 
   void updateResolution(int resolution) {
     state = state.copyWith(resolution: resolution);
   }
 
-  void updatePalette(ColorPalette palette) {
+  void updateConversionStyle(anime.ConversionStyle style) {
+    state = state.copyWith(conversionStyle: style);
+  }
+
+  void updatePalette(model.ColorPalette palette) {
     state = state.copyWith(palette: palette);
   }
 
@@ -71,6 +76,21 @@ class DotSettingsNotifier extends StateNotifier<DotSettings> {
 
   void updateBrightness(double brightness) {
     state = state.copyWith(brightness: brightness);
+  }
+
+  void updateSaturation(double saturation) {
+    state = state.copyWith(saturation: saturation);
+  }
+
+  void updateSmoothing(double smoothing) {
+    state = state.copyWith(smoothing: smoothing);
+  }
+
+  void updateCustomColors(List<int> colors) {
+    state = state.copyWith(
+      palette: model.ColorPalette.custom,
+      customColors: colors,
+    );
   }
 }
 
@@ -103,11 +123,32 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   void updateLanguage(String languageCode) {
     state = state.copyWith(languageCode: languageCode);
   }
+
+  void updatePreviewOpacity(double opacity) {
+    state = state.copyWith(previewOpacity: opacity);
+  }
+
+  void updateShowGrid(bool show) {
+    state = state.copyWith(showGridOverlay: show);
+  }
+
+  void updateHapticFeedback(bool enabled) {
+    state = state.copyWith(enableHapticFeedback: enabled);
+  }
+
+  void updateSoundEffects(bool enabled) {
+    state = state.copyWith(enableSoundEffects: enabled);
+  }
 }
 
 // ドット絵変換プロバイダー
 final dotConverterProvider = Provider<DotConverter>((ref) {
   return DotConverter();
+});
+
+// アニメ変換プロバイダー
+final animeConverterProvider = Provider<AnimeConverter>((ref) {
+  return AnimeConverter();
 });
 
 // 画像処理中状態プロバイダー
@@ -139,6 +180,10 @@ class GalleryNotifier extends StateNotifier<List<String>> {
   void clearAll() {
     state = [];
   }
+
+  void loadImages(List<String> images) {
+    state = images;
+  }
 }
 
 // 広告表示制御プロバイダー
@@ -162,13 +207,6 @@ class AdCounterNotifier extends StateNotifier<int> {
   }
 }
 
-// プレビュー表示モードプロバイダー
-final previewModeProvider = StateProvider<PreviewMode>(
-  (ref) => PreviewMode.compare,
-);
-
-enum PreviewMode { original, dotted, compare }
-
 // フラッシュモードプロバイダー
 final flashModeProvider = StateProvider<FlashMode>((ref) => FlashMode.auto);
 
@@ -176,3 +214,6 @@ final flashModeProvider = StateProvider<FlashMode>((ref) => FlashMode.auto);
 final cameraDirectionProvider = StateProvider<CameraLensDirection>(
   (ref) => CameraLensDirection.back,
 );
+
+// 色抽出パレットプロバイダー（アダプティブパレット用）
+final extractedColorsProvider = StateProvider<List<int>?>((ref) => null);

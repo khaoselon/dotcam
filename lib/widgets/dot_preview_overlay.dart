@@ -55,7 +55,6 @@ class _DotPreviewOverlayState extends ConsumerState<DotPreviewOverlay>
   Widget build(BuildContext context) {
     final dotSettings = ref.watch(dotSettingsProvider);
     final size = MediaQuery.of(context).size;
-    final position = _getPositionFromLayout(widget.layout, size);
 
     return AnimatedBuilder(
       animation: _fadeAnimation,
@@ -64,91 +63,8 @@ class _DotPreviewOverlayState extends ConsumerState<DotPreviewOverlay>
           opacity: _fadeAnimation.value * widget.opacity,
           child: Stack(
             children: [
-              // ドットプレビュー領域
-              Positioned(
-                top: position['top'],
-                left: position['left'],
-                right: position['right'],
-                bottom: position['bottom'],
-                child: Container(
-                  width: size.width / 2,
-                  height: size.height / 2,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Color(AppColors.primaryBlue).withOpacity(0.7),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: Stack(
-                      children: [
-                        // 背景（半透明）
-                        Container(color: Color(AppColors.overlayDark)),
-
-                        // ドット絵プレビュー（簡易版）
-                        CustomPaint(
-                          size: Size(size.width / 2, size.height / 2),
-                          painter: DotPreviewPainter(
-                            resolution: dotSettings.resolution,
-                            palette: dotSettings.palette.colors,
-                            showGrid: widget.showGrid,
-                          ),
-                        ),
-
-                        // ラベル
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Color(AppColors.overlayDark),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'ドット絵プレビュー',
-                              style: TextStyle(
-                                color: Color(AppColors.primaryText),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // 解像度表示
-                        Positioned(
-                          bottom: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Color(AppColors.primaryBlue),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${dotSettings.resolution}x${dotSettings.resolution}',
-                              style: TextStyle(
-                                color: Color(AppColors.primaryText),
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              // ドットプレビュー領域（修正：_buildPreviewAreaでPositionedを適切に配置）
+              _buildPreviewArea(size, dotSettings),
 
               // グリッドオーバーレイ（全画面）
               if (widget.showGrid)
@@ -167,16 +83,105 @@ class _DotPreviewOverlayState extends ConsumerState<DotPreviewOverlay>
     );
   }
 
-  Map<String, double> _getPositionFromLayout(CompareLayout layout, Size size) {
+  Widget _buildPreviewArea(Size size, DotSettings dotSettings) {
+    final position = _getPositionFromLayout(widget.layout, size);
+
+    return Positioned(
+      top: position['top'],
+      left: position['left'],
+      right: position['right'],
+      bottom: position['bottom'],
+      child: Container(
+        width: size.width / 2,
+        height: size.height / 2,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Color(AppColors.primaryBlue).withOpacity(0.7),
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Stack(
+            children: [
+              // 背景（半透明）
+              Container(color: Color(AppColors.overlayDark)),
+
+              // ドット絵プレビュー（簡易版）
+              CustomPaint(
+                size: Size(size.width / 2, size.height / 2),
+                painter: DotPreviewPainter(
+                  resolution: dotSettings.resolution,
+                  palette: dotSettings.palette.colors,
+                  showGrid: widget.showGrid,
+                ),
+              ),
+
+              // ラベル
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Color(AppColors.overlayDark),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'ドット絵プレビュー',
+                    style: TextStyle(
+                      color: Color(AppColors.primaryText),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              // 解像度表示
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Color(AppColors.primaryBlue),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${dotSettings.resolution}x${dotSettings.resolution}',
+                    style: TextStyle(
+                      color: Color(AppColors.primaryText),
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<String, double?> _getPositionFromLayout(CompareLayout layout, Size size) {
     switch (layout) {
       case CompareLayout.rightBottom:
-        return {'right': 20.0, 'bottom': 20.0};
+        return {'right': 20.0, 'bottom': 100.0, 'left': null, 'top': null};
       case CompareLayout.leftBottom:
-        return {'left': 20.0, 'bottom': 20.0};
+        return {'left': 20.0, 'bottom': 100.0, 'right': null, 'top': null};
       case CompareLayout.topRight:
-        return {'right': 20.0, 'top': 80.0};
+        return {'right': 20.0, 'top': 120.0, 'left': null, 'bottom': null};
       case CompareLayout.topLeft:
-        return {'left': 20.0, 'top': 80.0};
+        return {'left': 20.0, 'top': 120.0, 'right': null, 'bottom': null};
     }
   }
 }

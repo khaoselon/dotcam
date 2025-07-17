@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../providers/app_providers.dart';
 import '../utils/dot_converter.dart';
+import 'package:dotcam/utils/anime_converter.dart' as anime;
 import '../utils/constants.dart';
 import '../widgets/compare_view.dart';
 import '../widgets/loading_overlay.dart';
@@ -109,19 +110,45 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
     try {
       // オリジナル画像読み込み
       final imageFile = File(widget.imagePath);
+      if (!await imageFile.exists()) {
+        throw Exception('画像ファイルが見つかりません');
+      }
+
       _originalImageBytes = await imageFile.readAsBytes();
 
-      // ドット絵変換
+      // 変換設定を取得
       final dotSettings = ref.read(dotSettingsProvider);
-      final converter = ref.read(dotConverterProvider);
 
-      _dottedImageBytes = await converter.convertToDot(
-        imageBytes: _originalImageBytes!,
-        settings: dotSettings,
-        onProgress: (progress) {
-          // プログレス表示は今回省略
-        },
-      );
+      // 変換スタイルに応じて処理を分岐
+      if (dotSettings.conversionStyle ==
+          AnimeConverter.ConversionStyle.dotArt) {
+        // 従来のドット絵変換
+        final converter = ref.read(dotConverterProvider);
+        _dottedImageBytes = await converter.convertToDot(
+          imageBytes: _originalImageBytes!,
+          settings: dotSettings,
+          onProgress: (progress) {
+            // プログレス表示は今回省略
+          },
+        );
+      } else {
+        // 新しいアニメ風変換
+        final animeConverter = ref.read(animeConverterProvider);
+        _dottedImageBytes = await animeConverter.convertToAnime(
+          imageBytes: _originalImageBytes!,
+          style: dotSettings.conversionStyle,
+          options: {
+            'resolution': dotSettings.resolution,
+            'brightness': dotSettings.brightness,
+            'contrast': dotSettings.contrast,
+            'saturation': dotSettings.saturation,
+            'smoothing': dotSettings.smoothing,
+          },
+          onProgress: (progress) {
+            // プログレス表示は今回省略
+          },
+        );
+      }
 
       _fadeAnimationController.forward();
 
@@ -142,24 +169,46 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
 
   Future<void> _saveImages() async {
     try {
-      final settings = ref.read(settingsProvider);
-      final compareImageBytes = await _generateCompareImage();
-
-      final tempDir = await getTemporaryDirectory();
-      final filePath =
-          '${tempDir.path}/DotCam_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File(filePath);
-      await Gal.putImage(file.path);
-      // GallerySaverの戻り値(success)は使えないので、保存後はとりあえず成功扱いにする
-      _savedImagePath = file.path;
-      ref.read(galleryImagesProvider.notifier).addImage(_savedImagePath!);
-      if (settings.enableHapticFeedback) {
-        HapticFeedback.lightImpact();
+      if (_dottedImageBytes == null) {
+        throw Exception('変換された画像データがありません');
       }
-      _showSuccessSnackBar('画像を保存しました');
+
+      final settings = ref.read(settingsProvider);
+
+      // 一時ファイルに画像を保存
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'DotCam_${DateTime.now().millisecondsSinceEpoch}.png';
+      final tempFile = File('${tempDir.path}/$fileName');
+
+      // 比較画像または変換済み画像を保存
+      Uint8List imageToSave;
+      if (_isCompareMode) {
+        imageToSave = await _generateCompareImage();
+      } else {
+        imageToSave = _dottedImageBytes!;
+      }
+
+      await tempFile.writeAsBytes(imageToSave);
+
+      // galライブラリを使用してギャラリーに保存
+      try {
+        await Gal.putImage(tempFile.path);
+
+        _savedImagePath = tempFile.path;
+        ref.read(galleryImagesProvider.notifier).addImage(_savedImagePath!);
+
+        if (settings.enableHapticFeedback) {
+          HapticFeedback.lightImpact();
+        }
+        _showSuccessSnackBar('画像を保存しました');
+      } catch (galError) {
+        debugPrint('Galライブラリエラー: $galError');
+        // galが失敗した場合の代替処理
+        _showErrorSnackBar('保存に失敗しました: $galError');
+      }
     } catch (e) {
       debugPrint('保存エラー: $e');
-      _showErrorSnackBar('保存に失敗しました');
+      _showErrorSnackBar('保存に失敗しました: $e');
     }
   }
 
@@ -168,11 +217,9 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
       throw Exception('画像データが不正です');
     }
 
-    final settings = ref.read(settingsProvider);
-
-    // CompareViewウィジェットを使って比較画像を生成
-    // 実際の実装では、画像合成ライブラリを使用
-    return _dottedImageBytes!; // 簡易実装
+    // 簡易実装として、変換済み画像を返す
+    // 実際の比較画像生成はより複雑な処理が必要
+    return _dottedImageBytes!;
   }
 
   Future<void> _shareImage() async {
@@ -205,6 +252,26 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
 
   void _retakePhoto() {
     Navigator.of(context).pop();
+  }
+
+  String _getLoadingMessage() {
+    final dotSettings = ref.read(dotSettingsProvider);
+    switch (dotSettings.conversionStyle) {
+      case anime.ConversionStyle.anime:
+        return 'アニメ風に変換中...';
+      case anime.ConversionStyle.cartoon:
+        return 'カートゥーン風に変換中...';
+      case anime.ConversionStyle.manga:
+        return '漫画風に変換中...';
+      case anime.ConversionStyle.chibi:
+        return 'ちび風に変換中...';
+      case anime.ConversionStyle.realistic:
+        return 'リアル調整中...';
+      case anime.ConversionStyle.dotArt:
+        return 'ドット絵に変換中...';
+      default:
+        return '変換中...';
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -278,7 +345,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
           ),
 
           // ローディングオーバーレイ
-          if (_isProcessing) LoadingOverlay(message: 'ドット絵に変換中...'),
+          if (_isProcessing) LoadingOverlay(message: _getLoadingMessage()),
 
           // 上部コントロール
           Positioned(
@@ -289,12 +356,12 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
           ),
 
           // 下部コントロール
-          SlideTransition(
-            position: _slideAnimation,
-            child: Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: SlideTransition(
+              position: _slideAnimation,
               child: _buildBottomControls(),
             ),
           ),
@@ -323,10 +390,11 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen>
     }
 
     if (_isCompareMode && _dottedImageBytes != null) {
+      final dotSettings = ref.read(dotSettingsProvider);
       return CompareView(
         originalImageBytes: _originalImageBytes!,
         dottedImageBytes: _dottedImageBytes!,
-        layout: ref.watch(settingsProvider).compareLayout,
+        resolution: dotSettings.resolution,
       );
     } else if (_dottedImageBytes != null) {
       return Center(

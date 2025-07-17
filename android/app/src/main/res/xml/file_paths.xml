@@ -1,8 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="external_files" path="."/>
-    <external-files-path name="external_files" path="." />
-    <cache-path name="cache" path="." />
-    <external-cache-path name="external_cache" path="." />
-    <files-path name="files" path="." />
+    <!-- 内部ストレージ -->
+    <files-path 
+        name="internal_files" 
+        path="." />
+    
+    <!-- キャッシュディレクトリ -->
+    <cache-path 
+        name="cache_files" 
+        path="." />
+    
+    <!-- 外部ストレージ -->
+    <external-files-path 
+        name="external_files" 
+        path="." />
+    
+    <!-- 外部キャッシュ -->
+    <external-cache-path 
+        name="external_cache" 
+        path="." />
+    
+    <!-- 共有ディレクトリ -->
+    <external-path 
+        name="external_storage" 
+        path="." />
 </paths>

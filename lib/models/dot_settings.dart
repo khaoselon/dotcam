@@ -1,66 +1,100 @@
+import '../utils/anime_converter.dart';
+
 class DotSettings {
   final int resolution;
+  final AnimeConverter.ConversionStyle conversionStyle;
   final ColorPalette palette;
   final bool ditheringEnabled;
   final double contrast;
   final double brightness;
+  final double saturation;
+  final double smoothing;
+  final List<int>? customColors;
 
   const DotSettings({
     required this.resolution,
+    required this.conversionStyle,
     required this.palette,
     required this.ditheringEnabled,
     required this.contrast,
     required this.brightness,
+    required this.saturation,
+    required this.smoothing,
+    this.customColors,
   });
 
   factory DotSettings.defaultSettings() {
     return const DotSettings(
       resolution: 64,
-      palette: ColorPalette.gameboy,
-      ditheringEnabled: true,
-      contrast: 1.0,
-      brightness: 1.0,
+      conversionStyle: AnimeConverter.ConversionStyle.anime,
+      palette: ColorPalette.adaptive,
+      ditheringEnabled: false,
+      contrast: 1.2,
+      brightness: 1.1,
+      saturation: 1.3,
+      smoothing: 0.5,
     );
   }
 
   DotSettings copyWith({
     int? resolution,
+    AnimeConverter.ConversionStyle? conversionStyle,
     ColorPalette? palette,
     bool? ditheringEnabled,
     double? contrast,
     double? brightness,
+    double? saturation,
+    double? smoothing,
+    List<int>? customColors,
   }) {
     return DotSettings(
       resolution: resolution ?? this.resolution,
+      conversionStyle: conversionStyle ?? this.conversionStyle,
       palette: palette ?? this.palette,
       ditheringEnabled: ditheringEnabled ?? this.ditheringEnabled,
       contrast: contrast ?? this.contrast,
       brightness: brightness ?? this.brightness,
+      saturation: saturation ?? this.saturation,
+      smoothing: smoothing ?? this.smoothing,
+      customColors: customColors ?? this.customColors,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'resolution': resolution,
+      'conversionStyle': conversionStyle.index,
       'palette': palette.index,
       'ditheringEnabled': ditheringEnabled,
       'contrast': contrast,
       'brightness': brightness,
+      'saturation': saturation,
+      'smoothing': smoothing,
+      'customColors': customColors,
     };
   }
 
   factory DotSettings.fromJson(Map<String, dynamic> json) {
     return DotSettings(
       resolution: json['resolution'] ?? 64,
+      conversionStyle:
+          AnimeConverter.ConversionStyle.values[json['conversionStyle'] ?? 0],
       palette: ColorPalette.values[json['palette'] ?? 0],
-      ditheringEnabled: json['ditheringEnabled'] ?? true,
-      contrast: json['contrast']?.toDouble() ?? 1.0,
-      brightness: json['brightness']?.toDouble() ?? 1.0,
+      ditheringEnabled: json['ditheringEnabled'] ?? false,
+      contrast: json['contrast']?.toDouble() ?? 1.2,
+      brightness: json['brightness']?.toDouble() ?? 1.1,
+      saturation: json['saturation']?.toDouble() ?? 1.3,
+      smoothing: json['smoothing']?.toDouble() ?? 0.5,
+      customColors: json['customColors'] != null
+          ? List<int>.from(json['customColors'])
+          : null,
     );
   }
 }
 
 enum ColorPalette {
+  adaptive, // 元画像から色を抽出
+  original, // 元画像の色を保持（減色のみ）
   gameboy,
   gameboyColor,
   snes,
@@ -75,6 +109,10 @@ enum ColorPalette {
 extension ColorPaletteExtension on ColorPalette {
   String get displayName {
     switch (this) {
+      case ColorPalette.adaptive:
+        return '自動抽出';
+      case ColorPalette.original:
+        return '元画像';
       case ColorPalette.gameboy:
         return 'ゲームボーイ';
       case ColorPalette.gameboyColor:
@@ -96,14 +134,63 @@ extension ColorPaletteExtension on ColorPalette {
     }
   }
 
+  String get description {
+    switch (this) {
+      case ColorPalette.adaptive:
+        return '元画像から主要な色を自動抽出';
+      case ColorPalette.original:
+        return '元画像の色を保持したまま減色';
+      case ColorPalette.gameboy:
+        return 'クラシックな4色グリーン';
+      case ColorPalette.gameboyColor:
+        return '16色カラーパレット';
+      case ColorPalette.snes:
+        return 'レトロな16色パレット';
+      case ColorPalette.gba:
+        return '明るい16色パレット';
+      case ColorPalette.nes:
+        return 'ファミコン風16色';
+      case ColorPalette.c64:
+        return 'コモドール64風16色';
+      case ColorPalette.cga:
+        return 'CGA風16色';
+      case ColorPalette.monochrome:
+        return '白黒2色';
+      case ColorPalette.custom:
+        return 'ユーザー定義色';
+    }
+  }
+
   List<int> get colors {
     switch (this) {
+      case ColorPalette.adaptive:
+        // 実際の色は画像から動的に抽出される
+        return [
+          0xFF000000,
+          0xFF404040,
+          0xFF808080,
+          0xFFC0C0C0,
+          0xFFFFFFFF,
+          0xFF800000,
+          0xFF008000,
+          0xFF000080,
+        ];
+      case ColorPalette.original:
+        // 元画像の色をそのまま使用（プレースホルダー）
+        return [
+          0xFF000000,
+          0xFF333333,
+          0xFF666666,
+          0xFF999999,
+          0xFFCCCCCC,
+          0xFFFFFFFF,
+        ];
       case ColorPalette.gameboy:
         return [
-          0xFF0F0F0F, // 黒
-          0xFF555555, // 濃いグレー
-          0xFFAAAAAA, // 薄いグレー
-          0xFFFFFFFF, // 白
+          0xFF0F380F, // 濃い緑
+          0xFF306230, // 中緑
+          0xFF8BAC0F, // 薄い緑
+          0xFF9BBB0F, // 明るい緑
         ];
       case ColorPalette.gameboyColor:
         return [
@@ -241,6 +328,10 @@ extension ColorPaletteExtension on ColorPalette {
 
   int get maxColors {
     switch (this) {
+      case ColorPalette.adaptive:
+        return 16; // 動的に調整可能
+      case ColorPalette.original:
+        return 32; // 元画像から多めに抽出
       case ColorPalette.gameboy:
         return 4;
       case ColorPalette.gameboyColor:
@@ -260,5 +351,9 @@ extension ColorPaletteExtension on ColorPalette {
       case ColorPalette.custom:
         return 12;
     }
+  }
+
+  bool get isAdaptive {
+    return this == ColorPalette.adaptive || this == ColorPalette.original;
   }
 }
